@@ -595,3 +595,60 @@ canvas {
         opacity: 0;
     }
 }
+
+/* Admin Controls */
+.admin-controls {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.5);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    margin-bottom: 20px;
+}
+.admin-controls h3 {
+    font-size: 1rem;
+    color: #94a3b8;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+.admin-grid {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.admin-grid .input-group input {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    width: 100%;
+}
+.admin-btn {
+    width: 100%;
+    background: #475569;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+}
+.admin-btn:hover {
+    background: #64748b;
+}
+
+.kick-btn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+.kick-btn:hover {
+    background: #dc2626;
+}
+.hidden { display: none !important; }

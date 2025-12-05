@@ -40,6 +40,26 @@
                         <span class="label">Game Mode:</span>
                         <button id="mode-toggle-btn" class="mode-btn">Normal</button>
                     </div>
+
+                    <div id="admin-controls" class="admin-controls hidden">
+                        <h3>Admin Settings</h3>
+                        <div class="admin-grid">
+                            <div class="input-group">
+                                <label>Rows</label>
+                                <input type="number" id="rows-input" value="10" min="5" max="20">
+                            </div>
+                            <div class="input-group">
+                                <label>Cols</label>
+                                <input type="number" id="cols-input" value="20" min="5" max="30">
+                            </div>
+                            <div class="input-group">
+                                <label>Duration (s)</label>
+                                <input type="number" id="duration-input" value="120" min="10" max="600">
+                            </div>
+                        </div>
+                        <button id="apply-settings-btn" class="admin-btn">Apply Settings</button>
+                    </div>
+
                     <div class="player-list-box">
                         <h3>Connected Players</h3>
                         <ul id="lobby-player-list">

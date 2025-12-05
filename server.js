@@ -9,9 +9,9 @@ const path = require('path');
 app.use(express.static('public'));
 
 // Game Constants
-const ROWS = 10;
-const COLS = 20;
-const GAME_DURATION = 120; // 10 seconds for testing
+let ROWS = 10;
+let COLS = 20;
+let GAME_DURATION = 120; // 10 seconds for testing
 
 // Game State
 let gameState = 'waiting'; // 'waiting', 'playing'
@@ -129,7 +129,8 @@ io.on('connection', (socket) => {
         grid: (gameMode === 'capture' && gameState === 'playing') ? sharedGrid : players[socket.id].grid,
         timer: timer,
         myId: socket.id,
-        players: getPlayerList()
+        players: getPlayerList(),
+        settings: { ROWS, COLS, GAME_DURATION }
     });
     broadcastScores();
     io.emit('player_list_update', getPlayerList());
@@ -149,8 +150,33 @@ io.on('connection', (socket) => {
     });
 
     socket.on('toggle_mode', () => {
-        gameMode = gameMode === 'normal' ? 'capture' : 'normal';
-        io.emit('game_mode_update', gameMode);
+        // Only allow if admin (client-side check is weak but acceptable for this context,
+        // ideally we check name here too but name isn't secure auth)
+        // Checking name "yiuyiu" for basic security as requested
+        if (players[socket.id] && players[socket.id].name === 'yiuyiu') {
+            gameMode = gameMode === 'normal' ? 'capture' : 'normal';
+            io.emit('game_mode_update', gameMode);
+        }
+    });
+
+    socket.on('update_settings', (settings) => {
+        if (players[socket.id] && players[socket.id].name === 'yiuyiu') {
+            if (settings.rows) ROWS = parseInt(settings.rows);
+            if (settings.cols) COLS = parseInt(settings.cols);
+            if (settings.duration) GAME_DURATION = parseInt(settings.duration);
+
+            // Broadcast new settings
+            io.emit('settings_update', { ROWS, COLS, GAME_DURATION });
+        }
+    });
+
+    socket.on('kick_player', (targetId) => {
+        if (players[socket.id] && players[socket.id].name === 'yiuyiu') {
+            const targetSocket = io.sockets.sockets.get(targetId);
+            if (targetSocket) {
+                targetSocket.disconnect(true);
+            }
+        }
     });
 
     socket.on('start_game', () => {

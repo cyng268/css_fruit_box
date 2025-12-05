@@ -18,6 +18,11 @@ const startGameBtn = document.getElementById('start-game-btn');
 const playerNameInput = document.getElementById('player-name-input');
 const readyBtn = document.getElementById('ready-btn');
 const modeToggleBtn = document.getElementById('mode-toggle-btn');
+const adminControls = document.getElementById('admin-controls');
+const rowsInput = document.getElementById('rows-input');
+const colsInput = document.getElementById('cols-input');
+const durationInput = document.getElementById('duration-input');
+const applySettingsBtn = document.getElementById('apply-settings-btn');
 
 // Restore name from local storage
 const savedName = localStorage.getItem('player_name');
@@ -48,8 +53,8 @@ function showToast(message) {
 }
 
 // Game Config
-const ROWS = 10;
-const COLS = 20;
+let ROWS = 10;
+let COLS = 20;
 let CELL_SIZE = 40; // Will be dynamic
 let grid = [];
 let myId = null;
@@ -284,6 +289,13 @@ socket.on('init_game', (data) => {
     updateTimer(data.timer);
 
     updateLobbyPlayerList(data.players);
+    if (data.settings) {
+        ROWS = data.settings.ROWS || 10;
+        COLS = data.settings.COLS || 20;
+        rowsInput.value = ROWS;
+        colsInput.value = COLS;
+        durationInput.value = data.settings.GAME_DURATION || 120;
+    }
 
     if (data.gameState === 'playing') {
         showGame();
@@ -291,7 +303,7 @@ socket.on('init_game', (data) => {
     } else {
         showLobby();
     }
-
+    updateAdminUI(); // Check if I should see admin controls
     gameOverModal.classList.add('hidden');
 });
 
@@ -334,6 +346,15 @@ socket.on('block_cleared', (data) => {
         activeHighlights = activeHighlights.filter(h => Date.now() - h.timestamp < 1000);
         draw();
     }, 1000);
+});
+
+socket.on('settings_update', (settings) => {
+    ROWS = settings.ROWS;
+    COLS = settings.COLS;
+    rowsInput.value = ROWS;
+    colsInput.value = COLS;
+    durationInput.value = settings.GAME_DURATION;
+    showToast(`Game settings updated: ${ROWS}x${COLS}, ${settings.GAME_DURATION}s`);
 });
 
 const finalLeaderboardList = document.getElementById('final-leaderboard-list');
@@ -412,7 +433,10 @@ function updateLobbyPlayerList(players) {
                 <div class="status-dot ${statusClass}"></div>
                 <span>${name}</span>
             </div>
-            <span style="color: #94a3b8; font-size: 0.8rem;">${statusText}</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: #94a3b8; font-size: 0.8rem;">${statusText}</span>
+                ${(isAdmin() && !isMe) ? `<button class="kick-btn" onclick="kickPlayer('${p.id}')">Kick</button>` : ''}
+            </div>
         `;
         lobbyPlayerList.appendChild(li);
 
@@ -470,8 +494,79 @@ playerNameInput.addEventListener('input', (e) => {
     if (name) {
         localStorage.setItem('player_name', name);
         socket.emit('update_name', name);
+        updateAdminUI();
     }
 });
+
+applySettingsBtn.addEventListener('click', () => {
+    if (!isAdmin()) return;
+    const rows = rowsInput.value;
+    const cols = colsInput.value;
+    const duration = durationInput.value;
+    socket.emit('update_settings', { rows, cols, duration });
+});
+
+function isAdmin() {
+    return playerNameInput.value === 'yiuyiu';
+}
+
+function updateAdminUI() {
+    if (isAdmin()) {
+        adminControls.classList.remove('hidden');
+        modeToggleBtn.classList.remove('hidden'); // allow toggle
+    } else {
+        adminControls.classList.add('hidden');
+        modeToggleBtn.classList.add('hidden'); // hide toggle
+    }
+    // Refresh list to show/hide kick buttons
+    const currentList = []; // This is tricky as we don't have the list here. 
+    // Usually socket updates list. But maybe we can trigger a list refresh?
+    // Actually updateLobbyPlayerList is called by socket. 
+    // We can rely on next update or manually trigger simple UI update? 
+    // Ideally we store playersList in variable. We stored it in playersMap.
+    renderPlayerListFromMap();
+}
+
+function kickPlayer(id) {
+    if (isAdmin()) {
+        socket.emit('kick_player', id);
+    }
+}
+window.kickPlayer = kickPlayer; // Expose to global scope for onclick
+
+function renderPlayerListFromMap() {
+    // Re-render list using playersMap
+    lobbyPlayerList.innerHTML = '';
+    let allReady = true;
+    let hasPlayers = false; // Check count
+
+    Object.values(playersMap).forEach(p => {
+        hasPlayers = true;
+        if (!p.isReady) allReady = false;
+
+        const li = document.createElement('li');
+        li.className = 'lobby-player-item';
+
+        const isMe = p.id === myId;
+        const name = isMe ? `${p.name} (You)` : p.name;
+        const statusClass = p.isReady ? 'ready' : '';
+        const statusText = p.isReady ? 'Ready' : 'Not Ready';
+
+        li.innerHTML = `
+            <div class="lobby-player-info">
+                <div class="status-dot ${statusClass}"></div>
+                <span>${name}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="color: #94a3b8; font-size: 0.8rem;">${statusText}</span>
+                ${(isAdmin() && !isMe) ? `<button class="kick-btn" onclick="kickPlayer('${p.id}')">Kick</button>` : ''}
+            </div>
+        `;
+        lobbyPlayerList.appendChild(li);
+    });
+
+    startGameBtn.disabled = !allReady || !hasPlayers;
+}
 
 readyBtn.addEventListener('click', () => {
     socket.emit('toggle_ready');
