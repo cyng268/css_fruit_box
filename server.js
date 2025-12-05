@@ -11,7 +11,7 @@ app.use(express.static('public'));
 // Game Constants
 const ROWS = 10;
 const COLS = 20;
-const GAME_DURATION = 10; // 10 seconds for testing
+const GAME_DURATION = 120; // 10 seconds for testing
 
 // Game State
 let gameState = 'waiting'; // 'waiting', 'playing'

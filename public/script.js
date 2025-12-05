@@ -25,6 +25,11 @@ toastContainer.id = 'toast-container';
 document.body.appendChild(toastContainer);
 
 function showToast(message) {
+    // Limit to 2 toasts
+    while (toastContainer.children.length >= 2) {
+        toastContainer.removeChild(toastContainer.firstChild);
+    }
+
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
