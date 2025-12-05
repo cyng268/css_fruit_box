@@ -19,6 +19,23 @@ const playerNameInput = document.getElementById('player-name-input');
 const readyBtn = document.getElementById('ready-btn');
 const modeToggleBtn = document.getElementById('mode-toggle-btn');
 
+// Create toast container
+const toastContainer = document.createElement('div');
+toastContainer.id = 'toast-container';
+document.body.appendChild(toastContainer);
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+
+    // Remove after animation
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
 // Game Config
 const ROWS = 10;
 const COLS = 20;
@@ -30,6 +47,7 @@ let isDragging = false;
 let selectionStart = null; // {r, c}
 let selectionEnd = null;   // {r, c}
 let playersMap = {}; // id -> {name, isReady}
+let activeHighlights = []; // {r1, c1, r2, c2, timestamp}
 
 // Resize canvas to fit container
 function resizeCanvas() {
@@ -212,10 +230,31 @@ function draw() {
         }
 
         // Draw sum tooltip
-        // ctx.fillStyle = '#38bdf8';
         // ctx.font = `bold 16px Outfit`;
         // ctx.fillText(`Sum: ${sum}`, x + w / 2, y - 10);
     }
+
+    // Draw Active Highlights (from other players)
+    activeHighlights.forEach(h => {
+        // Filter out old highlights just in case, though we do it in setTimeout
+        if (Date.now() - h.timestamp > 1000) return;
+
+        const x = h.c1 * CELL_SIZE;
+        const y = h.r1 * CELL_SIZE;
+        const w = (h.c2 - h.c1 + 1) * CELL_SIZE;
+        const h_px = (h.r2 - h.r1 + 1) * CELL_SIZE;
+
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.4)'; // Reddish highlight
+        ctx.fillRect(x, y, w, h_px);
+
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x, y, w, h_px);
+
+        // Optional: Draw name?
+        // ctx.fillStyle = '#fff';
+        // ctx.fillText(h.playerName, x + w/2, y + h_px/2);
+    });
 }
 
 // Socket Events
@@ -259,6 +298,27 @@ socket.on('score_update', (scores) => {
 
 socket.on('timer_update', (time) => {
     updateTimer(time);
+});
+
+socket.on('block_cleared', (data) => {
+    const { playerName, area } = data;
+
+    // Show toast
+    showToast(`${playerName} cleared a block!`);
+
+    // Add highlight
+    activeHighlights.push({
+        ...area,
+        playerName,
+        timestamp: Date.now()
+    });
+    draw();
+
+    // Remove highlight after 1 second
+    setTimeout(() => {
+        activeHighlights = activeHighlights.filter(h => Date.now() - h.timestamp < 1000);
+        draw();
+    }, 1000);
 });
 
 const finalLeaderboardList = document.getElementById('final-leaderboard-list');

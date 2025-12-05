@@ -224,6 +224,10 @@ io.on('connection', (socket) => {
 
                 if (gameMode === 'capture') {
                     io.emit('grid_update', { grid: sharedGrid });
+                    io.emit('block_cleared', {
+                        playerName: player.name,
+                        area: { r1: startR, c1: startC, r2: endR, c2: endC }
+                    });
                 } else {
                     socket.emit('grid_update', { grid: player.grid });
                 }
