@@ -210,9 +210,9 @@ function draw() {
         }
 
         // Draw sum tooltip
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = `bold 16px Outfit`;
-        ctx.fillText(`Sum: ${sum}`, x + w / 2, y - 10);
+        // ctx.fillStyle = '#38bdf8';
+        // ctx.font = `bold 16px Outfit`;
+        // ctx.fillText(`Sum: ${sum}`, x + w / 2, y - 10);
     }
 }
 
