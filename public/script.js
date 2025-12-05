@@ -19,6 +19,12 @@ const playerNameInput = document.getElementById('player-name-input');
 const readyBtn = document.getElementById('ready-btn');
 const modeToggleBtn = document.getElementById('mode-toggle-btn');
 
+// Restore name from local storage
+const savedName = localStorage.getItem('player_name');
+if (savedName) {
+    playerNameInput.value = savedName;
+}
+
 // Create toast container
 const toastContainer = document.createElement('div');
 toastContainer.id = 'toast-container';
@@ -265,6 +271,10 @@ function draw() {
 // Socket Events
 socket.on('connect', () => {
     console.log('Connected');
+    const savedName = localStorage.getItem('player_name');
+    if (savedName) {
+        socket.emit('update_name', savedName);
+    }
 });
 
 socket.on('init_game', (data) => {
@@ -447,9 +457,8 @@ function updateLeaderboard(scores) {
 }
 
 restartBtn.addEventListener('click', () => {
-    // socket.emit('reset_game'); // Maybe go back to lobby?
-    // For now, let's just reload to go back to lobby or wait for server to reset
-    location.reload();
+    gameOverModal.classList.add('hidden');
+    showLobby();
 });
 
 startGameBtn.addEventListener('click', () => {
@@ -459,6 +468,7 @@ startGameBtn.addEventListener('click', () => {
 playerNameInput.addEventListener('input', (e) => {
     const name = e.target.value;
     if (name) {
+        localStorage.setItem('player_name', name);
         socket.emit('update_name', name);
     }
 });
