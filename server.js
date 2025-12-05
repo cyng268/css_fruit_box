@@ -15,7 +15,9 @@ const GAME_DURATION = 120; // 2 minutes in seconds
 
 // Game State
 let gameState = 'waiting'; // 'waiting', 'playing'
+let gameMode = 'normal'; // 'normal', 'capture'
 let initialGrid = [];
+let sharedGrid = [];
 let players = {}; // socket.id -> { score, grid, name }
 let timer = GAME_DURATION;
 let gameInterval = null;
@@ -42,12 +44,17 @@ function copyGrid(grid) {
 function startGame() {
     gameState = 'playing';
     initialGrid = generateGrid();
+
+    if (gameMode === 'capture') {
+        sharedGrid = copyGrid(initialGrid);
+    }
+
     timer = GAME_DURATION;
 
     // Reset all connected players
     for (const id in players) {
         players[id].score = 0;
-        players[id].grid = copyGrid(initialGrid);
+        players[id].grid = gameMode === 'capture' ? sharedGrid : copyGrid(initialGrid);
     }
 
     if (gameInterval) clearInterval(gameInterval);
@@ -67,7 +74,10 @@ function startGame() {
     }, 1000);
 
     // Broadcast new state to everyone
-    io.emit('game_start', { grid: initialGrid, timer });
+    io.emit('game_start', {
+        grid: gameMode === 'capture' ? sharedGrid : initialGrid,
+        timer
+    });
     broadcastScores();
 }
 
@@ -108,7 +118,8 @@ io.on('connection', (socket) => {
     // Send current state to new player
     socket.emit('init_game', {
         gameState: gameState,
-        grid: players[socket.id].grid,
+        gameMode: gameMode,
+        grid: (gameMode === 'capture' && gameState === 'playing') ? sharedGrid : players[socket.id].grid,
         timer: timer,
         myId: socket.id,
         players: getPlayerList()
@@ -128,6 +139,11 @@ io.on('connection', (socket) => {
             players[socket.id].isReady = !players[socket.id].isReady;
             io.emit('player_list_update', getPlayerList());
         }
+    });
+
+    socket.on('toggle_mode', () => {
+        gameMode = gameMode === 'normal' ? 'capture' : 'normal';
+        io.emit('game_mode_update', gameMode);
     });
 
     socket.on('start_game', () => {
@@ -161,7 +177,15 @@ io.on('connection', (socket) => {
 
         const { r1, c1, r2, c2 } = data;
         const player = players[socket.id];
-        if (!player || !player.grid || player.grid.length === 0) return;
+
+        // Determine which grid to use
+        let currentGrid;
+        if (gameMode === 'capture') {
+            currentGrid = sharedGrid;
+        } else {
+            if (!player || !player.grid || player.grid.length === 0) return;
+            currentGrid = player.grid;
+        }
 
         // Validate bounds
         if (r1 < 0 || r1 >= ROWS || r2 < 0 || r2 >= ROWS ||
@@ -178,12 +202,7 @@ io.on('connection', (socket) => {
 
         for (let r = startR; r <= endR; r++) {
             for (let c = startC; c <= endC; c++) {
-                const val = player.grid[r][c];
-                if (val === 0) {
-                    // Already cleared, treat as 0? Or invalid?
-                    // Usually in these games, you can select empty space but it adds 0.
-                    // Let's assume 0.
-                }
+                const val = currentGrid[r][c];
                 sum += val;
             }
         }
@@ -193,8 +212,8 @@ io.on('connection', (socket) => {
             let clearedCount = 0;
             for (let r = startR; r <= endR; r++) {
                 for (let c = startC; c <= endC; c++) {
-                    if (player.grid[r][c] !== 0) {
-                        player.grid[r][c] = 0; // 0 means cleared
+                    if (currentGrid[r][c] !== 0) {
+                        currentGrid[r][c] = 0; // 0 means cleared
                         clearedCount++;
                     }
                 }
@@ -202,7 +221,13 @@ io.on('connection', (socket) => {
 
             if (clearedCount > 0) {
                 player.score += clearedCount; // Score = number of apples cleared
-                socket.emit('grid_update', { grid: player.grid });
+
+                if (gameMode === 'capture') {
+                    io.emit('grid_update', { grid: sharedGrid });
+                } else {
+                    socket.emit('grid_update', { grid: player.grid });
+                }
+
                 broadcastScores();
             }
         }
