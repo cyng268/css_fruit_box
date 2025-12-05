@@ -17,6 +17,7 @@ const lobbyPlayerList = document.getElementById('lobby-player-list');
 const startGameBtn = document.getElementById('start-game-btn');
 const playerNameInput = document.getElementById('player-name-input');
 const readyBtn = document.getElementById('ready-btn');
+const modeToggleBtn = document.getElementById('mode-toggle-btn');
 
 // Game Config
 const ROWS = 10;
@@ -24,6 +25,7 @@ const COLS = 20;
 let CELL_SIZE = 40; // Will be dynamic
 let grid = [];
 let myId = null;
+let gameMode = 'normal'; // 'normal' or 'capture'
 let isDragging = false;
 let selectionStart = null; // {r, c}
 let selectionEnd = null;   // {r, c}
@@ -224,6 +226,7 @@ socket.on('connect', () => {
 socket.on('init_game', (data) => {
     grid = data.grid;
     myId = data.myId;
+    updateGameMode(data.gameMode || 'normal');
     updateTimer(data.timer);
 
     updateLobbyPlayerList(data.players);
@@ -398,3 +401,22 @@ playerNameInput.addEventListener('input', (e) => {
 readyBtn.addEventListener('click', () => {
     socket.emit('toggle_ready');
 });
+
+modeToggleBtn.addEventListener('click', () => {
+    socket.emit('toggle_mode');
+});
+
+socket.on('game_mode_update', (mode) => {
+    updateGameMode(mode);
+});
+
+function updateGameMode(mode) {
+    gameMode = mode;
+    if (mode === 'normal') {
+        modeToggleBtn.textContent = 'Normal Mode';
+        modeToggleBtn.className = 'mode-btn normal';
+    } else {
+        modeToggleBtn.textContent = 'Capture Mode';
+        modeToggleBtn.className = 'mode-btn capture';
+    }
+}
