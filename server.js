@@ -11,7 +11,7 @@ app.use(express.static('public'));
 // Game Constants
 const ROWS = 10;
 const COLS = 20;
-const GAME_DURATION = 120; // 2 minutes in seconds
+const GAME_DURATION = 10; // 10 seconds for testing
 
 // Game State
 let gameState = 'waiting'; // 'waiting', 'playing'
@@ -63,13 +63,20 @@ function startGame() {
         io.emit('timer_update', timer);
         if (timer <= 0) {
             clearInterval(gameInterval);
-            gameState = 'waiting'; // Go back to waiting or just end? Let's say end then waiting.
 
             const leaderboard = Object.values(players)
                 .map(p => ({ name: p.name, score: p.score, id: p.id }))
                 .sort((a, b) => b.score - a.score);
 
             io.emit('game_over', leaderboard);
+
+            // Reset player readiness
+            for (const id in players) {
+                players[id].isReady = false;
+            }
+            io.emit('player_list_update', getPlayerList());
+
+            gameState = 'waiting';
         }
     }, 1000);
 
