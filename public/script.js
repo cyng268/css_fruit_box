@@ -4,6 +4,8 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const timerEl = document.getElementById('timer');
 const myScoreEl = document.getElementById('my-score');
+const combinationsBox = document.getElementById('combinations-box');
+const combinationsCountEl = document.getElementById('combinations-count');
 const scoreListEl = document.getElementById('score-list');
 const gameOverModal = document.getElementById('game-over-modal');
 const finalScoreEl = document.getElementById('final-score');
@@ -288,6 +290,10 @@ socket.on('init_game', (data) => {
     updateGameMode(data.gameMode || 'normal');
     updateTimer(data.timer);
 
+    if (data.combinations !== undefined) {
+        combinationsCountEl.textContent = data.combinations;
+    }
+
     updateLobbyPlayerList(data.players);
     if (data.settings) {
         ROWS = data.settings.ROWS || 10;
@@ -355,6 +361,10 @@ socket.on('settings_update', (settings) => {
     colsInput.value = COLS;
     durationInput.value = settings.GAME_DURATION;
     showToast(`Game settings updated: ${ROWS}x${COLS}, ${settings.GAME_DURATION}s`);
+});
+
+socket.on('combinations_update', (count) => {
+    combinationsCountEl.textContent = count;
 });
 
 const finalLeaderboardList = document.getElementById('final-leaderboard-list');
@@ -585,8 +595,10 @@ function updateGameMode(mode) {
     if (mode === 'normal') {
         modeToggleBtn.textContent = 'Normal Mode';
         modeToggleBtn.className = 'mode-btn normal';
+        combinationsBox.style.display = 'none';
     } else {
         modeToggleBtn.textContent = 'Capture Mode';
         modeToggleBtn.className = 'mode-btn capture';
+        combinationsBox.style.display = 'flex';
     }
 }

@@ -40,6 +40,46 @@ function copyGrid(grid) {
     return grid.map(row => [...row]);
 }
 
+// Helper: Count possible combinations summing to 10
+function countCombinations(grid) {
+    if (!grid || grid.length === 0) return 0;
+    const rows = grid.length;
+    const cols = grid[0].length;
+    let count = 0;
+
+    // Precompute 2D prefix sums
+    // prefix[i][j] stores sum of grid[0..i-1][0..j-1]
+    const prefix = Array.from({ length: rows + 1 }, () => Array(cols + 1).fill(0));
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            prefix[r + 1][c + 1] = prefix[r][c + 1] + prefix[r + 1][c] - prefix[r][c] + grid[r][c];
+        }
+    }
+
+    // Iterate over all possible rectangles
+    for (let r1 = 0; r1 < rows; r1++) {
+        for (let r2 = r1; r2 < rows; r2++) {
+            for (let c1 = 0; c1 < cols; c1++) {
+                for (let c2 = c1; c2 < cols; c2++) {
+                    const currentSum = prefix[r2 + 1][c2 + 1] - prefix[r1][c2 + 1] - prefix[r2 + 1][c1] + prefix[r1][c1];
+                    if (currentSum === 10) {
+                        count++;
+                    }
+                }
+            }
+        }
+    }
+    return count;
+}
+
+function broadcastCombinations() {
+    if (gameMode === 'capture') {
+        const count = countCombinations(sharedGrid);
+        io.emit('combinations_update', count);
+    }
+}
+
 // Start or Reset Game
 function startGame() {
     gameState = 'playing';
@@ -86,6 +126,7 @@ function startGame() {
         timer
     });
     broadcastScores();
+    broadcastCombinations();
 }
 
 function broadcastScores() {
@@ -123,7 +164,7 @@ io.on('connection', (socket) => {
     };
 
     // Send current state to new player
-    socket.emit('init_game', {
+    const initPayload = {
         gameState: gameState,
         gameMode: gameMode,
         grid: (gameMode === 'capture' && gameState === 'playing') ? sharedGrid : players[socket.id].grid,
@@ -131,7 +172,11 @@ io.on('connection', (socket) => {
         myId: socket.id,
         players: getPlayerList(),
         settings: { ROWS, COLS, GAME_DURATION }
-    });
+    };
+    if (gameMode === 'capture' && gameState === 'playing') {
+        initPayload.combinations = countCombinations(sharedGrid);
+    }
+    socket.emit('init_game', initPayload);
     broadcastScores();
     io.emit('player_list_update', getPlayerList());
 
@@ -156,6 +201,9 @@ io.on('connection', (socket) => {
         if (players[socket.id] && players[socket.id].name === 'yiuyiu') {
             gameMode = gameMode === 'normal' ? 'capture' : 'normal';
             io.emit('game_mode_update', gameMode);
+            if (gameMode === 'capture' && gameState === 'playing') {
+                broadcastCombinations();
+            }
         }
     });
 
@@ -257,6 +305,7 @@ io.on('connection', (socket) => {
 
                 if (gameMode === 'capture') {
                     io.emit('grid_update', { grid: sharedGrid });
+                    broadcastCombinations();
                     io.emit('block_cleared', {
                         playerName: player.name,
                         area: { r1: startR, c1: startC, r2: endR, c2: endC }
